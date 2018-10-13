@@ -6,13 +6,19 @@ import (
 	"net/http"
 	"log"
 	"encoding/json"
-	//"ioutil"
+	"io/ioutil"
 	"github.com/gorilla/mux"
+	"github.com/marni/goigc"
 )
 
-//	TODO create internal storage system. Separate package?
-
 var startTime time.Time
+var tracks []igc.Track
+
+type ApiMetadata struct {
+	Uptime	string
+	Info 	string 
+	Version	string
+}
 
 func init () {
 	startTime = time.Now()
@@ -33,12 +39,6 @@ func main () {
 	
 }
 
-type ApiMetadata struct {
-	Uptime	string
-	Info 	string 
-	Version	string
-}
-
 func apiInfo(w http.ResponseWriter, r *http.Request) {
 
 	//	The time package's Duration type only shows hours, minutes and seconds, so to get the full
@@ -51,17 +51,32 @@ func apiInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func trackRegistration(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Endpoint hit: trackRegistration")
+
+	url, err := ioutil.ReadAll(r.Body)
+	if (err != nil) {
+		fmt.Errorf("Problem reading the url", err)
+	}
+	track, err := igc.ParseLocation(string(url))
+	if (err != nil) {
+		fmt.Errorf("Problem reading the track", err)
+	}
+	tracks = append(tracks, track)
+	id := len(tracks)
+	json.NewEncoder(w).Encode(id)
 }
 
 func getAllTracks(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Endpoint hit: getAllTracks")
+	//fmt.Fprintf(w, "Endpoint hit: getAllTracks\n")
+	http.Error(w, "Not implemented\n", 501)
+
 }
 
 func getTrack(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Endpoint hit: getTrack")
+	//fmt.Fprintf(w, "Endpoint hit: getTrack\n")
+	http.Error(w, "Not implemented\n", 501)
 }
 
 func getTrackField(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Endpoint hit: getTrackField")
+	//fmt.Fprintf(w, "Endpoint hit: getTrackField\n")
+	http.Error(w, "Not implemented\n", 501)
 }
