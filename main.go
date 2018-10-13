@@ -66,8 +66,13 @@ func trackRegistration(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllTracks(w http.ResponseWriter, r *http.Request) {
-	//fmt.Fprintf(w, "Endpoint hit: getAllTracks\n")
-	http.Error(w, "Not implemented\n", 501)
+
+	var ids []int
+
+	for i := 1; i <= len(tracks); i++ {
+		ids = append(ids, i)
+	}
+	json.NewEncoder(w).Encode(ids)
 
 }
 
