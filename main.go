@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"strings"
+	"os"
 	"strconv"
 	"errors"
 	"regexp"
@@ -51,7 +52,12 @@ func main () {
 	myRouter.HandleFunc(urlRoot + "/api/igc/{id}", getTrack).Methods("GET")
 	myRouter.HandleFunc(urlRoot + "/api/igc/{id}/{field}", getTrackField).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(":8081", myRouter))
+	port := os.Getenv("PORT")
+	if (port == "") {
+		log.Fatal("Port must be set")
+	}
+
+	log.Fatal(http.ListenAndServe(":" + port, myRouter))
 	
 }
 
