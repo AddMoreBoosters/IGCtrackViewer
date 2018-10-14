@@ -20,13 +20,13 @@ var startTime time.Time
 var tracks []igc.Track
 var validID = regexp.MustCompile("^[0-9]+$")
 
-type ApiMetadata struct {
+type apiMetadata struct {
 	Uptime	string
 	Info 	string 
 	Version	string
 }
 
-type TrackResponseData struct {
+type trackResponseData struct {
 	Hdate time.Time 	`json:"H_date"`
 	Pilot string 		`json:"pilot"`
 	Glider string 		`json:"glider"`
@@ -42,8 +42,8 @@ func main () {
 	
 	urlRoot := "/igcinfo"
 	myRouter := mux.NewRouter().StrictSlash(true)	
-	//	Disregards trailing slash, e.g. /api/ will be redirected to /api. Note that for
-	//	most clients, this will turn a POST request to /api/igc/ into a GET request to /api/igc
+	//	Disregards trailing slash, e.g. /api/ will be redirected to /api. Note that for most clients,
+	//	this will turn a POST request to /api/igc/ into a GET request to /api/igc instead.
 	//	Documentation: https://godoc.org/github.com/gorilla/mux#Router.StrictSlash
 
 	myRouter.HandleFunc(urlRoot + "/api", apiInfo).Methods("GET")
@@ -61,32 +61,85 @@ func main () {
 	
 }
 
+//	Responds with metadata about the service itself.
 func apiInfo(w http.ResponseWriter, r *http.Request) {
 
-	//	The time package's Duration type only shows hours, minutes and seconds, so to get the full
-	//	format I use Date instead. The side effect is that since 0000.00.00 is not a valid date,
-	//	uptimes of less than 1 day become -0001.11.30 instead. Oh well.
-	exampleTime := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC).Add(time.Since(startTime))
+	year, month, day, hour, min, sec := diff(startTime, time.Now())
+	upTime := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC)
 
-	metadata := &ApiMetadata{Uptime: exampleTime.String(), Info: "Service for igc tracks.", Version: "v1"}
+	metadata := &apiMetadata{Uptime: upTime.String(), Info: "Service for igc tracks.", Version: "v1"}
 	json.NewEncoder(w).Encode(metadata)
 }
 
+//	Function calculates time difference
+//	I copied this from https://stackoverflow.com/questions/36530251/golang-time-since-with-months-and-years
+//	Reason being that the standard library's time.Since() only gives difference in hours, minutes and seconds
+func diff(a, b time.Time) (year, month, day, hour, min, sec int) {
+    if a.Location() != b.Location() {
+        b = b.In(a.Location())
+    }
+    if a.After(b) {
+        a, b = b, a
+    }
+    y1, M1, d1 := a.Date()
+    y2, M2, d2 := b.Date()
+
+    h1, m1, s1 := a.Clock()
+    h2, m2, s2 := b.Clock()
+
+    year = int(y2 - y1)
+    month = int(M2 - M1)
+    day = int(d2 - d1)
+    hour = int(h2 - h1)
+    min = int(m2 - m1)
+    sec = int(s2 - s1)
+
+    // Normalize negative values
+    if sec < 0 {
+        sec += 60
+        min--
+    }
+    if min < 0 {
+        min += 60
+        hour--
+    }
+    if hour < 0 {
+        hour += 24
+        day--
+    }
+    if day < 0 {
+        // days in month:
+        t := time.Date(y1, M1, 32, 0, 0, 0, 0, time.UTC)
+        day += 32 - t.Day()
+        month--
+    }
+    if month < 0 {
+        month += 12
+        year--
+    }
+
+    return
+}
+
+//	Gets a track from the provided url, stores it in memory, and responds with its new ID
 func trackRegistration(w http.ResponseWriter, r *http.Request) {
 
 	url, err := ioutil.ReadAll(r.Body)
 	if (err != nil) {
-		fmt.Errorf("Problem reading the url", err)
+		http.Error(w, "Internal server error: " + err.Error(), 500)
+		return
 	}
 	track, err := igc.ParseLocation(string(url))
 	if (err != nil) {
-		fmt.Errorf("Problem reading the track", err)
+		http.Error(w, "Bad request: " + err.Error(), 400)
+		return
 	}
 	tracks = append(tracks, track)
 	id := len(tracks)
 	json.NewEncoder(w).Encode(id)
 }
 
+//	Responds with a slice containing the ID's of all tracks stored in memory
 func getAllTracks(w http.ResponseWriter, r *http.Request) {
 
 	var ids []int
@@ -98,6 +151,7 @@ func getAllTracks(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//	Responds with data about a single, specified track.
 func getTrack(w http.ResponseWriter, r *http.Request) {
 
 	id, err := getID(w, r)
@@ -106,7 +160,7 @@ func getTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var response = TrackResponseData {
+	var response = trackResponseData {
 		Hdate: tracks[id - 1].Header.Date,
 		Pilot: tracks[id - 1].Header.Pilot,
 		Glider: tracks[id - 1].Header.GliderType,
@@ -117,6 +171,7 @@ func getTrack(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+//	Responds with the data found in a single field of a particular track.
 func getTrackField(w http.ResponseWriter, r *http.Request) {
 	
 	id, err := getID(w, r)
@@ -143,6 +198,7 @@ func getTrackField(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//	Helper function. Gets the ID from the url and ensures it is a valid one.
 func getID (w http.ResponseWriter, r *http.Request) (int, error) {
 	s := strings.Split(r.URL.Path, "/")
 	idString := s[4]
