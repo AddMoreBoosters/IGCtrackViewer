@@ -65,9 +65,10 @@ func main () {
 func apiInfo(w http.ResponseWriter, r *http.Request) {
 
 	year, month, day, hour, min, sec := diff(startTime, time.Now())
-	upTime := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC)
+	upTime := "P" + strconv.Itoa(year) + "Y" + strconv.Itoa(month) + "M" + strconv.Itoa(day) + "D" + "T" + strconv.Itoa(hour) + "H" + strconv.Itoa(min) + "M" + strconv.Itoa(sec) + "S"
+	
 
-	metadata := &apiMetadata{Uptime: upTime.String(), Info: "Service for igc tracks.", Version: "v1"}
+	metadata := &apiMetadata{Uptime: upTime, Info: "Service for igc tracks.", Version: "v1"}
 	json.NewEncoder(w).Encode(metadata)
 }
 
